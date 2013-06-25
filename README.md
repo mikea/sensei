@@ -1,4 +1,4 @@
-exp
+Sensei: Machine Learning in Go
 ===
 
-Experiments with Bayes, Markov and other folks
+My own experiments with machine learning in Go.
