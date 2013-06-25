@@ -2,199 +2,209 @@ package pgm7
 
 import (
 	"fmt"
-	"github.com/deboshire/exp/ai"
+	"github.com/deboshire/exp/ai/classifiers"
+	"github.com/deboshire/exp/ai/classifiers/logit"
+	"github.com/deboshire/exp/ai/data"
 	"github.com/deboshire/exp/io/mat"
+	"github.com/deboshire/exp/math/opt"
 	"github.com/deboshire/exp/math/opt/gssearch"
-	"github.com/deboshire/exp/math/opt/sgrad"
-	v "github.com/deboshire/exp/math/vector"
+	"testing"
+
+	// "github.com/deboshire/exp/math/opt/gssearch"
+
 	"math/rand"
 )
 
-func readTrainData() (trainFeatures []v.F64, trainLabels v.B) {
-	trainFeatures = mat.MustRead("Train1X.mat").Array("Train1X").RowsToVectors()
-	trainLabels = mat.MustRead("Train1Y.mat").Array("Train1Y").ToVector().F64ToB()
+func readTrainData() (d data.Table, classAttribute data.Attr) {
+	features := mat.MustRead("Train1X.mat").Array("Train1X").RowsToTable()
+	labels := mat.MustRead("Train1Y.mat").Array("Train1Y").RowsToTable()
+
+	d = data.Zip(features, labels)
+	classAttribute = d.Attrs().ByName("Train1Y.0")
 	return
 }
 
-func readBenchmarkData() (benchmarkFeatures []v.F64, benchmarkLabels v.B) {
-	benchmarkFeatures = mat.MustRead("Validation1X.mat").Array("Validation1X").RowsToVectors()
-	benchmarkLabels = mat.MustRead("Validation1Y.mat").Array("Validation1Y").ToVector().F64ToB()
-	return
+func readBenchmarkData() data.Table {
+	benchmarkFeatures := mat.MustRead("Validation1X.mat").Array("Validation1X").Rename("Train1X").RowsToTable()
+	benchmarkLabels := mat.MustRead("Validation1Y.mat").Array("Validation1Y").Rename("Train1Y").RowsToTable()
+	return data.Zip(benchmarkFeatures, benchmarkLabels)
 }
 
-func ExamplePGM7_LogisticRegression_HoldoutTesting() {
-	rand.Seed(98765)
-	trainFeatures, trainLabels := readTrainData()
+type Score struct {
+	trainScore     float64
+	benchmarkScore float64
+}
 
-	for _, testingFraction := range []float64{0.5, 0.25, 0.1, 0.05} {
-		fmt.Println("---\nfraction: ", testingFraction)
-		score := ai.HoldoutTestBinaryClassifier(
-			trainFeatures,
-			trainLabels,
-			testingFraction,
-			ai.NewLogisticRegressionTrainer(0,
-				&sgrad.NumIterationsCrit{NumIterations: 10},
-				1e-8))
-		fmt.Println("Holdout testing:", score)
+func verifyScore(t *testing.T, testName string, expectedScore Score, actualScore Score) {
+	if actualScore.trainScore != expectedScore.trainScore {
+		t.Errorf("[%s] Bad train score: expected=%v, actual=%v", testName, expectedScore.trainScore, actualScore.trainScore)
+	}
+	if actualScore.benchmarkScore != expectedScore.benchmarkScore {
+		t.Errorf("[%s] Bad benchmark score: expected=%v, actual=%v", testName, expectedScore.benchmarkScore, actualScore.benchmarkScore)
+	}
+}
+
+func TestIncreasingNumberOfIterations(t *testing.T) {
+	trainData, labelAttr := readTrainData()
+	benchData := readBenchmarkData()
+
+	tests := []struct {
+		iterations int
+		score      Score
+	}{
+		{1, Score{0.815, 0.825}},
+		{10, Score{0.96, 0.92}},
+		{100, Score{1.0, 0.92}},
+		{1000, Score{1.0, 0.92}},
 	}
 
-	// Output:
-	// ---
-	// fraction:  0.5
-	// Holdout testing: 0.84
-	// ---
-	// fraction:  0.25
-	// Holdout testing: 0.92
-	// ---
-	// fraction:  0.1
-	// Holdout testing: 0.85
-	// ---
-	// fraction:  0.05
-	// Holdout testing: 1
+	for _, test := range tests {
+		iterations := test.iterations
+		trainer := &logit.Trainer{
+			Lambda:   0,
+			TermCrit: &opt.NumIterationsCrit{NumIterations: iterations},
+			Eps:      1e-8}
+		classifier := trainer.Train(trainData, labelAttr)
+
+		actualIterations := classifier.(*logit.LogitClassifier).Minimizer.State.TotalIter
+		if actualIterations != test.iterations {
+			t.Errorf("Unexpected number of iterations: %d vs %d", actualIterations, iterations)
+		}
+
+		trainScore := classifiers.Evaluate(classifier, trainData, labelAttr)
+		benchmarkScore := classifiers.Evaluate(classifier, benchData, labelAttr)
+		verifyScore(t, fmt.Sprint(iterations), test.score, Score{trainScore, benchmarkScore})
+	}
 }
 
-func ExamplePGM7_LogisticRegression_Iterations() {
-	rand.Seed(98765)
-	trainFeatures, trainLabels := readTrainData()
-	benchmarkFeatures, benchmarkLabels := readBenchmarkData()
+func TestDecreasingEpsilon(t *testing.T) {
+	trainData, labelAttr := readTrainData()
+	benchData := readBenchmarkData()
 
-	for _, iterations := range []int{1, 10, 100, 1000} {
-		fmt.Println("---\niterations: ", iterations)
-		classifier := ai.TrainLogisticRegressionClassifier(
-			trainFeatures,
-			trainLabels,
-			0,
-			&sgrad.NumIterationsCrit{NumIterations: iterations},
-			1e-8)
-		fmt.Println("train set: ", ai.EvaluateBinaryClassifier(classifier, trainFeatures, trainLabels))
-		fmt.Println("benchmark set: ", ai.EvaluateBinaryClassifier(classifier, benchmarkFeatures, benchmarkLabels))
+	tests := []struct {
+		epsilon    float64
+		iterations int
+		score      Score
+	}{
+		{1e-1, 13, Score{0.965, 0.915}},
+		{1e-2, 33, Score{0.99, 0.92}},
+		{1e-3, 115, Score{1.0, 0.92}},
+		{1e-4, 839, Score{1.0, 0.925}},
 	}
 
-	// Output:
-	// ---
-	// iterations:  1
-	// train set:  0.955
-	// benchmark set:  0.94
-	// ---
-	// iterations:  10
-	// train set:  0.985
-	// benchmark set:  0.925
-	// ---
-	// iterations:  100
-	// train set:  1
-	// benchmark set:  0.925
-	// ---
-	// iterations:  1000
-	// train set:  1
-	// benchmark set:  0.93
+	for _, test := range tests {
+		trainer := &logit.Trainer{
+			Lambda:   0,
+			TermCrit: &opt.MaxRelativeChangeCrit{},
+			Eps:      test.epsilon,
+		}
+
+		classifier := trainer.Train(trainData, labelAttr)
+		actualIterations := classifier.(*logit.LogitClassifier).Minimizer.State.TotalIter
+		if actualIterations != test.iterations {
+			t.Errorf("Unexpected number of iterations: %d vs %d", actualIterations, test.iterations)
+		}
+
+		trainScore := classifiers.Evaluate(classifier, trainData, labelAttr)
+		benchmarkScore := classifiers.Evaluate(classifier, benchData, labelAttr)
+		verifyScore(t, fmt.Sprintf("epsilon = %v", test.epsilon), test.score, Score{trainScore, benchmarkScore})
+	}
 }
 
-func ExamplePGM7_LogisticRegression_Epsilon() {
-	rand.Seed(98765)
-	trainFeatures, trainLabels := readTrainData()
-	benchmarkFeatures, benchmarkLabels := readBenchmarkData()
+func TestChangingHoldoutFraction(t *testing.T) {
+	trainData, labelAttr := readTrainData()
 
-	for _, epsilon := range []float64{1e-1, 1e-2, 1e-3} {
-		fmt.Println("---\nepsilon: ", epsilon)
-		classifier := ai.TrainLogisticRegressionClassifier(
-			trainFeatures,
-			trainLabels,
-			0,
-			&sgrad.RelativeMeanImprovementCrit{},
-			epsilon)
-		fmt.Println("train set: ", ai.EvaluateBinaryClassifier(classifier, trainFeatures, trainLabels))
-		fmt.Println("benchmark set: ", ai.EvaluateBinaryClassifier(classifier, benchmarkFeatures, benchmarkLabels))
+	tests := []struct {
+		fraction float64
+		score    float64
+	}{
+		{0.5, 0.9},
+		{0.25, 0.74},
+		{0.1, 0.95},
+		{0.05, 0.9},
 	}
 
-	// Output:
-	// ---
-	// epsilon:  0.1
-	// train set:  0.99
-	// benchmark set:  0.94
-	// ---
-	// epsilon:  0.01
-	// train set:  0.99
-	// benchmark set:  0.925
-	// ---
-	// epsilon:  0.001
-	// train set:  1
-	// benchmark set:  0.93
+	for _, test := range tests {
+		actualScore := classifiers.HoldoutTest(
+			&logit.Trainer{
+				Lambda:   0,
+				TermCrit: &opt.MaxRelativeChangeCrit{},
+				Eps:      1e-4},
+			trainData,
+			labelAttr,
+			test.fraction)
+
+		if actualScore != test.score {
+			t.Errorf("[fraction = %v] Bad score: expected=%v, actual=%v", test.fraction, test.score, actualScore)
+		}
+	}
 }
 
-func ExamplePGM7_LogisticRegression_Lambda() {
-	rand.Seed(98765)
-	trainFeatures, trainLabels := readTrainData()
-	benchmarkFeatures, benchmarkLabels := readBenchmarkData()
+func TestChangingLambda(t *testing.T) {
+	trainData, labelAttr := readTrainData()
+	benchData := readBenchmarkData()
 
-	for _, lambda := range []float64{0, 0.1, 0.2, 0.4, 0.8, 1} {
-		fmt.Println("---\nlambda: ", lambda)
-		classifier := ai.TrainLogisticRegressionClassifier(
-			trainFeatures,
-			trainLabels,
-			lambda,
-			&sgrad.RelativeMeanImprovementCrit{},
-			1e-2)
-		fmt.Println("train set: ", ai.EvaluateBinaryClassifier(classifier, trainFeatures, trainLabels))
-		fmt.Println("benchmark set: ", ai.EvaluateBinaryClassifier(classifier, benchmarkFeatures, benchmarkLabels))
+	tests := []struct {
+		lambda float64
+		score  Score
+	}{
+		{0, Score{1, 0.925}},
+		{0.1, Score{0.955, 0.925}},
+		{0.2, Score{0.945, 0.925}},
+		{0.3, Score{0.93, 0.915}},
+		{0.4, Score{0.915, 0.905}},
+		{0.8, Score{0.905, 0.88}},
+		{1, Score{0.905, 0.88}},
 	}
 
-	// Output:
-	// ---
-	// lambda:  0
-	// train set:  1
-	// benchmark set:  0.93
-	// ---
-	// lambda:  0.1
-	// train set:  0.94
-	// benchmark set:  0.93
-	// ---
-	// lambda:  0.2
-	// train set:  0.94
-	// benchmark set:  0.925
-	// ---
-	// lambda:  0.4
-	// train set:  0.925
-	// benchmark set:  0.915
-	// ---
-	// lambda:  0.8
-	// train set:  0.875
-	// benchmark set:  0.86
-	// ---
-	// lambda:  1
-	// train set:  0.905
-	// benchmark set:  0.905
+	for _, test := range tests {
+		trainer := &logit.Trainer{
+			Lambda:   test.lambda,
+			TermCrit: &opt.MaxRelativeChangeCrit{},
+			Eps:      1e-4,
+		}
+
+		classifier := trainer.Train(trainData, labelAttr)
+
+		trainScore := classifiers.Evaluate(classifier, trainData, labelAttr)
+		benchmarkScore := classifiers.Evaluate(classifier, benchData, labelAttr)
+		verifyScore(t, fmt.Sprintf("lambda = %v", test.lambda), test.score, Score{trainScore, benchmarkScore})
+	}
 }
 
+// TODO: convert into test
 func ExamplePGM7_LogisticRegression_OptimizeLambda() {
-	rand.Seed(98765)
-	trainFeatures, trainLabels := readTrainData()
-	benchmarkFeatures, benchmarkLabels := readBenchmarkData()
+	trainData, labelAttr := readTrainData()
+	benchmarkData := readBenchmarkData()
 
 	goalFunc := func(lambda float64) float64 {
-		score := ai.HoldoutTestBinaryClassifier(
-			trainFeatures,
-			trainLabels,
+		score := classifiers.HoldoutTest(
+			&logit.Trainer{
+				Lambda:   lambda,
+				TermCrit: &opt.NumIterationsCrit{NumIterations: 10},
+				Eps:      1e-8},
+			trainData,
+			labelAttr,
 			.1,
-			ai.NewLogisticRegressionTrainer(
-				lambda,
-				&sgrad.NumIterationsCrit{NumIterations: 10},
-				1e-8))
+		)
 		return -score
 	}
 
-	lambda := gssearh.Minimize(0, 10, goalFunc, &gssearh.AbsoluteErrorTermCrit{}, .1)
+	lambda := gssearh.Minimize(0, 1, goalFunc, &gssearh.AbsoluteErrorTermCrit{}, .1)
 	fmt.Println("Optimal lambda:", lambda)
-	classifier := ai.TrainLogisticRegressionClassifier(
-		trainFeatures,
-		trainLabels,
-		lambda,
-		&sgrad.RelativeMeanImprovementCrit{},
-		1e-2)
-	fmt.Println("train set: ", ai.EvaluateBinaryClassifier(classifier, trainFeatures, trainLabels))
-	fmt.Println("benchmark set: ", ai.EvaluateBinaryClassifier(classifier, benchmarkFeatures, benchmarkLabels))
+	classifier := (&logit.Trainer{
+		Lambda:   lambda,
+		TermCrit: &opt.NumIterationsCrit{NumIterations: 10 * len(trainData.Attrs())},
+		Eps:      1e-8}).Train(trainData, labelAttr)
+	fmt.Println("train set: ", classifiers.Evaluate(classifier, trainData, labelAttr))
+	fmt.Println("benchmark set: ", classifiers.Evaluate(classifier, benchmarkData, labelAttr))
 
 	// Output:
-	// Optimal lambda: 1.4841053312063623
-	// train set:  0.895
-	// benchmark set:  0.9
+	// Optimal lambda: 0.24013328687768137
+	// train set:  0.945
+	// benchmark set:  0.925
+}
+
+func init() {
+	rand.Seed(98765)
 }

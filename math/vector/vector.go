@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/rand"
 	"reflect"
+	"strconv"
 	"unsafe"
 )
 
@@ -31,14 +32,39 @@ func (v F64) CopyTo(target F64) {
 	copy(target, v)
 }
 
+func (v F64) CopyFrom(src F64) {
+	copy(v, src)
+}
+
 func Zeroes(size int) F64 {
 	return F64(make([]float64, size))
+}
+
+func NaN(size int) F64 {
+	result := F64(make([]float64, size))
+	result.Fill(math.NaN())
+	return result
+}
+
+func (v F64) Fill(a float64) F64 {
+	for i := range v {
+		v[i] = a
+	}
+	return v
 }
 
 func (v F64) Sub(v1 F64) {
 	assertSameLen(v, v1)
 	for i := range v {
 		v[i] -= v1[i]
+	}
+}
+
+func (v F64) SubTo(v1 F64, dest F64) {
+	assertSameLen(v, v1)
+	assertSameLen(v, dest)
+	for i := range v {
+		dest[i] = v[i] - v1[i]
 	}
 }
 
@@ -72,18 +98,27 @@ func (v F64) Dist2(v1 F64) float64 {
 	// return d
 }
 
+func (v F64) Dist(v1 F64) float64 {
+	return math.Sqrt(v.Dist2(v1))
+}
+
+func (v F64) Length() float64 {
+	return math.Sqrt(v.DotProduct(v))
+}
+
 func (v F64) Len() int {
 	return len(v)
 }
 
 func (v F64) DotProduct(v1 F64) float64 {
 	assertSameLen(v, v1)
+	return float64(C.dot(addr(v), addr(v1), C.int(len(v))))
 
-	result := 0.0
-	for i := range v {
-		result += v[i] * v1[i]
-	}
-	return result
+	// result := 0.0
+	// for i := range v {
+	// 	result += v[i] * v1[i]
+	// }
+	// return result
 }
 
 func (v F64) F64ToB() B {
@@ -114,4 +149,17 @@ func (v B) Shuffle() {
 		j := rand.Intn(i)
 		v[i], v[j] = v[j], v[i]
 	}
+}
+
+func Parse(strs []string) (res F64, err error) {
+	res = Zeroes(len(strs))
+
+	for i, str := range strs {
+		parsedFloat, err := strconv.ParseFloat(str, 64)
+		if err != nil {
+			return res, err
+		}
+		res[i] = parsedFloat
+	}
+	return
 }

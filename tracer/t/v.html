@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script language="javascript" type="text/javascript" src="/s/flot/jquery.min.js"> </script>
+	<script language="javascript" type="text/javascript" src="/s/flot/jquery.flot.min.js"> </script>
+</head>
+<body>
+
+<h1>{{.Name}}</h1>
+
+<div style="width:900px;height:400px" id="plot"></div>
+
+<script language="javascript" type="text/javascript">
+vvvals = "";
+$(function () {
+	var nvals = {{len .Values}};
+	var vals = [
+		{{ range $idx, $e := .Values }}[{{ $idx }},{{ $e }}], {{ end }}
+	];
+	vvvals = vals;
+	var options = { };
+	$.plot($("#plot"), [vals], options);
+});
+</script>
+
+</body>
+</html>
