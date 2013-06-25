@@ -2,15 +2,15 @@ package pgm7
 
 import (
 	"fmt"
-	"github.com/deboshire/exp/ai/classifiers"
-	"github.com/deboshire/exp/ai/classifiers/logit"
-	"github.com/deboshire/exp/ai/data"
-	"github.com/deboshire/exp/io/mat"
-	"github.com/deboshire/exp/math/opt"
-	"github.com/deboshire/exp/math/opt/gssearch"
+	"github.com/mikea/sensei/ai/classifiers"
+	"github.com/mikea/sensei/ai/classifiers/logit"
+	"github.com/mikea/sensei/ai/data"
+	"github.com/mikea/sensei/io/mat"
+	"github.com/mikea/sensei/math/opt"
+	"github.com/mikea/sensei/math/opt/gssearch"
 	"testing"
 
-	// "github.com/deboshire/exp/math/opt/gssearch"
+	// "github.com/mikea/sensei/math/opt/gssearch"
 
 	"math/rand"
 )

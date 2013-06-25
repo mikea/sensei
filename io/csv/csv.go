@@ -3,8 +3,8 @@ package csv
 import (
 	"bufio"
 	"encoding/csv"
-	"github.com/deboshire/exp/ai/data"
-	"github.com/deboshire/exp/math/vector"
+	"github.com/mikea/sensei/ai/data"
+	"github.com/mikea/sensei/math/vector"
 	"os"
 )
 

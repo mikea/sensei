@@ -1,8 +1,8 @@
 package classifiers
 
 import (
-	"github.com/deboshire/exp/ai"
-	"github.com/deboshire/exp/ai/data"
+	"github.com/mikea/sensei/ai"
+	"github.com/mikea/sensei/ai/data"
 )
 
 // Evaluate binary classifier on a given data.

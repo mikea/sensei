@@ -1,8 +1,8 @@
 package opt
 
 import (
-	"github.com/deboshire/exp/math/stat"
-	"github.com/deboshire/exp/math/vector"
+	"github.com/mikea/sensei/math/stat"
+	"github.com/mikea/sensei/math/vector"
 	"math"
 )
 

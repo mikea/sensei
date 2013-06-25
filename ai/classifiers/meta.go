@@ -1,8 +1,8 @@
 package classifiers
 
 import (
-	"github.com/deboshire/exp/ai"
-	v "github.com/deboshire/exp/math/vector"
+	"github.com/mikea/sensei/ai"
+	v "github.com/mikea/sensei/math/vector"
 )
 
 func NominalClassifierTrainerFromBinary(

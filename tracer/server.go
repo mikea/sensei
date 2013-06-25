@@ -3,7 +3,7 @@ package tracer
 import (
 	"flag"
 	"fmt"
-	"github.com/deboshire/exp/math/vector"
+	"github.com/mikea/sensei/math/vector"
 	"go/build"
 	"html/template"
 	"io"
@@ -143,7 +143,7 @@ func (t *webTracer) start() {
 func initDirs() {
 	ctx := build.Default
 	// todo(mike): can you reference current package somehow?
-	pkg, err := ctx.Import("github.com/deboshire/exp/tracer", "", build.FindOnly)
+	pkg, err := ctx.Import("github.com/mikea/sensei/tracer", "", build.FindOnly)
 	if err != nil {
 		panic(err)
 	}
