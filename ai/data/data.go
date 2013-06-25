@@ -3,7 +3,7 @@ package data
 
 import (
 	"fmt"
-	"github.com/deboshire/exp/math/vector"
+	"github.com/mikea/sensei/math/vector"
 	"reflect"
 )
 

@@ -10,9 +10,9 @@ package sgd
 
 import (
 	"fmt"
-	"github.com/deboshire/exp/math/opt"
-	"github.com/deboshire/exp/math/vector"
-	"github.com/deboshire/exp/tracer"
+	"github.com/mikea/sensei/math/opt"
+	"github.com/mikea/sensei/math/vector"
+	"github.com/mikea/sensei/tracer"
 	"math"
 )
 

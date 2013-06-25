@@ -3,10 +3,10 @@ package logit
 
 import (
 	"fmt"
-	"github.com/deboshire/exp/ai"
-	"github.com/deboshire/exp/ai/data"
-	"github.com/deboshire/exp/math/opt/sgd"
-	"github.com/deboshire/exp/math/vector"
+	"github.com/mikea/sensei/ai"
+	"github.com/mikea/sensei/ai/data"
+	"github.com/mikea/sensei/math/opt/sgd"
+	"github.com/mikea/sensei/math/vector"
 	"math"
 )
 

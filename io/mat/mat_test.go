@@ -2,7 +2,7 @@ package mat
 
 import (
 	"bufio"
-	v "github.com/deboshire/exp/math/vector"
+	v "github.com/mikea/sensei/math/vector"
 	"os"
 	"reflect"
 	"testing"

@@ -2,8 +2,8 @@
 package ols
 
 import (
-	"github.com/deboshire/exp/math/opt/sgd"
-	"github.com/deboshire/exp/math/vector"
+	"github.com/mikea/sensei/math/opt/sgd"
+	"github.com/mikea/sensei/math/vector"
 	"math/rand"
 )
 
